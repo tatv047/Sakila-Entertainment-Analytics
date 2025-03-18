@@ -1,0 +1,85 @@
+1. Currently we are downloading the data locally in the woring directory then copied it to the container.
+Download: 
+Invoke-WebRequest -Uri "https://github.com/devrimgunduz/pagila/raw/master/pagila-schema.sql" -OutFile ".\pagila-schema.sql"
+Invoke-WebRequest -Uri "https://github.com/devrimgunduz/pagila/raw/master/pagila-data.sql" -OutFile ".\pagila-data.sql"
+
+After that copy it to the pagila container:
+docker cp pagila-schema.sql pagila:/pagila-schema.sql
+docker cp pagila-data.sql pagila:/pagila-data.sql
+
+now open a terminal inside conatiner:
+docker exec -it pagila bash
+
+connect to postgreSQL instance
+psql -U postgres -d my_postgres
+
+So it threw an error: 
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  database "my_postgres" does not exist
+
+So what this is telling is that the database "my_postgres" doesn't exist in the conatiner yet, but we already did the that in 
+pgadmin4 ryt? (u can check all databases in pagila by doing "\l")
+Actually that was just the connection setting, you would have remembered "postgres" value in maintenace databse (postgres) is the default
+database, so we need to first create "my_postgres"
+
+Ahh, I see where the confusion is coming from! Let me clarify it clearly:
+
+### 🚀 **What exactly is a "server" in pgAdmin4?**
+1. In **pgAdmin4**, the term "server" is a bit misleading — it's not a separate machine or process.  
+2. When you create a "server" in pgAdmin4, you are actually just setting up a **connection configuration** to an existing PostgreSQL instance.  
+
+### 🏗️ **What happens when you create a server in pgAdmin4?**
+- The **PostgreSQL container** you created (`pagila`) is running the PostgreSQL instance.  
+- The "my_postgres" server in pgAdmin is just a **configuration** that tells pgAdmin:
+   - "Hey, there’s a PostgreSQL instance running at `hostname = pagila` and `port = 5432`."
+   - "Use the credentials I’m providing to authenticate and manage that instance."  
+
+### 🎯 **Key Point:**  
+- The **"server"** in pgAdmin is **NOT** a real server — it's just a connection profile to an actual PostgreSQL instance running inside your Docker container.  
+
+---
+
+### ✅ **How does it relate to databases?**
+1. A **PostgreSQL instance** (running in your container) can hold **multiple databases**.  
+2. The "my_postgres" server in pgAdmin connects to the **PostgreSQL instance**.  
+3. Once connected, you can create and switch between databases inside that instance (like `postgres`, `my_postgres`, etc.).  
+
+---
+
+### 💡 **Example:**
+- ✅ `docker run --name pagila ...` → Creates a container running a PostgreSQL instance  
+- ✅ `my_postgres` in pgAdmin → Connects to that instance  
+- ✅ `CREATE DATABASE my_postgres;` → Adds a new database inside that instance  
+- ✅ `\c my_postgres;` → Switches connection to that database  
+
+---
+
+### 🔥 **Think of it like this:**  
+- 🔌 The PostgreSQL container = Actual server  
+- 🎛️ The "my_postgres" server in pgAdmin = A shortcut/config to access that server  
+- 📂 `my_postgres` = A database within the PostgreSQL instance  
+
+---
+
+### 🏆 **Conclusion:**  
+➡️ The "my_postgres" server is just a connection profile in pgAdmin4.  
+➡️ The actual PostgreSQL **server** is the running container (`pagila`).  
+➡️ The `my_postgres` **database** is inside that PostgreSQL instance. 😎
+
+So to create a database in the container:
+1. connect to the container's shell
+    docker exec -it pagila bash
+2. select the psql shell as the postgres user
+    psql -U postgres 
+3. create the database
+    CREATE DATABASE my_postgres
+4. exit psql : \q
+5. connect to my_postgres and load schema & data 
+    psql -U postgres -d my_postgres
+    \i /pagila-schema.sql;
+    \i /pagila-data.sql;
+6. \dt to check the tables in my_postgres
+7. If you find no tables then do : SET search_path TO public;
+ When you create a new database, PostgreSQL sets the default schema path to public, but sometimes this isn’t set properly 
+ — especially when loading external data or working with new databases.  
+ You can also do: ALTER DATABASE my_postgres SET search_path TO public;
+This way, PostgreSQL will always know where to look when you log in next time

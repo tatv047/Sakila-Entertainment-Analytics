@@ -1,0 +1,39 @@
+projectflow:
+
+1. Okay so I wanted to work for my analytics project on Sakila data, just to prsactice SQL,its various functions
+and report making and powerBI dashboard creation.
+2. But due to local storage constraints, I decided why not use docker to create a container and work on it.
+3. So I created a container with postgres image and pgadmin4 image.
+Now the problem with sakila is that it is a sample database for MySQL and not for postgres.
+4. So I decided to use pagila database which is a sample database for postgres.
+5. I made a docker-compose file to create the containers and run them.Also just for pratice I created a network and volume.
+6. I downloaded the pagila schema and data files from the internet in my work diretory.
+This isn't what I was initially planning to do, I wanted to create a ingest_pagila.py file to ingest the data into the database.
+But I am inexperienced in sqlalchemy,so despite making connection and schema of the database, I was unable to insert the data into the database.
+This is mainly due to my inexperienc in writing such python file, and LLMs are not helping me in this regard. There is some metdata
+in the data files which I am unable to understand how to handle. So furing data insertion it was throwing errors.
+7. So I decided to insert the data manually into the database, using the downloaded file.
+I copied them into the postgres container and then inserted the data into the database.
+
+To do that:
+docker cp pagila-schema.sql 4bc227ec240f:/pagila-schema.sql
+docker cp pagila-data.sql 4bc227ec240f:/pagila-data.sql
+4bc227ec240f is the container id of the postgres container. You can directly use the container name as well.
+After that do the following:
+docker exec -it 4bc227ec240f bash 
+to enter the container shell.
+If you do "ls" in the shell you'll see the pagila-schema.sql and pagila-data.sql files.
+8. Now you can insert the data into the database.
+psql -U postgres -d pagila_entertainment
+to enter the database shell.
+9. Now, run the SQL files to create the schema and load the data:
+\i /pagila-schema.sql
+\i /pagila-data.sql
+10. Now you can check the tables in the database using \dt command. If you found an error saying : Did not find any relations, then do:
+It maybe because the search path is not set properly. So do:
+SET search_path TO public;
+To make it permanent across session do:
+ALTER DATABASE pagila_entertainment SET search_path TO public;
+11. Now you can see the tables in the database.
+12. Lets sonnect the pgadminPagila to the database and run some queries on it. It is being locally hosted on port 5050. 
+13. Remember that we are in a network, so the host is pgdatabase and not localhost.The port is 5432 not 5431
